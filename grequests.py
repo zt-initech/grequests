@@ -9,6 +9,7 @@ by gevent. All API methods return a ``Request`` instance (as opposed to
 ``Response``). A list of requests can be sent with ``map()``.
 """
 from functools import partial
+import traceback
 
 try:
     import gevent
@@ -56,6 +57,8 @@ class AsyncRequest(object):
         self.kwargs = kwargs
         #: Resulting ``Response``
         self.response = None
+        self.exception = None
+        self.formatted_exc = None
 
     def send(self, **kwargs):
         """
@@ -72,6 +75,7 @@ class AsyncRequest(object):
                                                 self.url, **merged_kwargs)
         except Exception as e:
             self.exception = e
+            self.formatted_exc = traceback.format_exc()
         return self
 
 
@@ -117,10 +121,10 @@ def map(requests, stream=False, size=None, exception_handler=None):
     ret = []
 
     for request in requests:
-        if request.response:
+        if not request.response is None:
             ret.append(request.response)
         elif exception_handler:
-            exception_handler(request, request.exception)
+            exception_handler(request, request.exception, request.formatted_exc)
 
     return ret
 
@@ -144,6 +148,6 @@ def imap(requests, stream=False, size=2, exception_handler=None):
         if request.response:
             yield request.response
         elif exception_handler:
-            exception_handler(request, request.exception)
+            exception_handler(request, request.exception, request.formatted_exc)
 
     pool.join()
